@@ -8,6 +8,8 @@ const logger = require('./config/logger');
 const routes = require('./routes');
 const errorHandler = require('./middleware/errorHandler');
 const { apiLimiter } = require('./middleware/rateLimiter');
+const scraperScheduler = require('./jobs/scraperScheduler');
+const cleanupJob = require('./jobs/cleanupJob');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -60,6 +62,10 @@ const startServer = async () => {
       logger.info('Database synced');
     }
 
+    // Initialize all background jobs before accepting HTTP requests
+    await scraperScheduler.initializeSchedules();
+    cleanupJob.initialize();
+
     // Start listening
     app.listen(PORT, () => {
       logger.info(`Server running on port ${PORT}`);
@@ -82,6 +88,14 @@ process.on('unhandledRejection', (err) => {
 process.on('uncaughtException', (err) => {
   logger.error('Uncaught Exception', { error: err.message });
   process.exit(1);
+});
+
+// Add graceful shutdown
+process.on('SIGTERM', () => {
+  logger.info('SIGTERM received, shutting down gracefully');
+  scraperScheduler.stopAll();
+  cleanupJob.stop();
+  process.exit(0);
 });
 
 startServer();
