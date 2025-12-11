@@ -222,20 +222,24 @@ Contributions are welcome! Please read our [Contributing Guidelines](docs/CONTRI
 4. Push to the branch (git push origin feature/AmazingFeature)
 5. Open a Pull Request
 
-📝 License
+## 📝 License
+
 This project is licensed under the MIT License - see the LICENSE file for details.
+
 👤 Author
 Ilhan Firka Najia
 
 GitHub: @HanTheDev
 
-🙏 Acknowledgments
+## 🙏 Acknowledgments
 
-Built as a portfolio project for full-stack engineering position
+Built as a portfolio project for my full-stack engineering skills
+
 Inspired by modern web scraping best practices
+
 Thanks to the open-source community
 
-📧 Contact
-For questions or feedback, please reach out at your.email@example.com
+## 📧 Contact
+For questions or feedback, please reach out at hanfirka1@gmail.com
 
 Note: This project is for educational and portfolio purposes. Always respect websites' robots.txt and terms of service when scraping.
