@@ -1,5 +1,5 @@
 const { ScrapedData, ScraperConfig } = require('../models');
-const { Op } = require('sequelize');
+const { Op, Sequelize } = require('sequelize');
 const logger = require('../config/logger');
 
 class DataController {
@@ -24,7 +24,7 @@ class DataController {
       // Filters
       if (dataType) where.dataType = dataType;
       if (scraperId) where.scraperConfigId = scraperId;
-      
+
       if (search) {
         where[Op.or] = [
           { title: { [Op.iLike]: `%${search}%` } },
@@ -107,63 +107,71 @@ class DataController {
       startDate.setDate(startDate.getDate() - parseInt(days));
       where.scrapedAt = { [Op.gte]: startDate };
 
-      // Total count
+      // 1. Total count
       const totalCount = await ScrapedData.count({ where });
 
-      // Count by data type
-      const byType = await ScrapedData.findAll({
-        where,
-        attributes: [
-          'dataType',
-          [ScrapedData.sequelize.fn('COUNT', ScrapedData.sequelize.col('id')), 'count']
-        ],
-        group: ['dataType']
+      // 2. Count by data type - using raw query to avoid ambiguity
+      const byTypeResult = await ScrapedData.sequelize.query(`
+        SELECT data_type as "dataType", COUNT(*) as count
+        FROM scraped_data
+        WHERE scraped_at >= :startDate
+        ${scraperId ? 'AND scraper_config_id = :scraperId' : ''}
+        GROUP BY data_type
+        ORDER BY count DESC
+      `, {
+        replacements: { 
+          startDate, 
+          ...(scraperId && { scraperId: parseInt(scraperId) }) 
+        },
+        type: Sequelize.QueryTypes.SELECT
       });
 
-      // Count by scraper
-      const byScraper = await ScrapedData.findAll({
-        where,
-        attributes: [
-          'scraperConfigId',
-          [ScrapedData.sequelize.fn('COUNT', ScrapedData.sequelize.col('id')), 'count']
-        ],
-        group: ['scraperConfigId'],
-        include: [{
-          model: ScraperConfig,
-          as: 'scraperConfig',
-          attributes: ['name', 'scraperType']
-        }]
+      // 3. Count by scraper
+      const byScraperResult = await ScrapedData.sequelize.query(`
+        SELECT 
+          sd.scraper_config_id as "scraperId",
+          sc.name as "scraperName",
+          sc.scraper_type as "scraperType",
+          COUNT(*) as count
+        FROM scraped_data sd
+        LEFT JOIN scraper_configs sc ON sd.scraper_config_id = sc.id
+        WHERE sd.scraped_at >= :startDate
+        ${scraperId ? 'AND sd.scraper_config_id = :scraperId' : ''}
+        GROUP BY sd.scraper_config_id, sc.name, sc.scraper_type
+        ORDER BY count DESC
+      `, {
+        replacements: { 
+          startDate, 
+          ...(scraperId && { scraperId: parseInt(scraperId) }) 
+        },
+        type: Sequelize.QueryTypes.SELECT
       });
 
-      // Daily counts for chart
-      const dailyCounts = await ScrapedData.findAll({
-        where,
-        attributes: [
-          [ScrapedData.sequelize.fn('DATE', ScrapedData.sequelize.col('scraped_at')), 'date'],
-          [ScrapedData.sequelize.fn('COUNT', ScrapedData.sequelize.col('id')), 'count']
-        ],
-        group: [ScrapedData.sequelize.fn('DATE', ScrapedData.sequelize.col('scraped_at'))],
-        order: [[ScrapedData.sequelize.fn('DATE', ScrapedData.sequelize.col('scraped_at')), 'ASC']]
+      // 4. Daily counts for chart
+      const dailyCountsResult = await ScrapedData.sequelize.query(`
+        SELECT 
+          DATE(scraped_at) as date,
+          COUNT(*) as count
+        FROM scraped_data
+        WHERE scraped_at >= :startDate
+        ${scraperId ? 'AND scraper_config_id = :scraperId' : ''}
+        GROUP BY DATE(scraped_at)
+        ORDER BY date ASC
+      `, {
+        replacements: { 
+          startDate, 
+          ...(scraperId && { scraperId: parseInt(scraperId) }) 
+        },
+        type: Sequelize.QueryTypes.SELECT
       });
 
       res.json({
         success: true,
         data: {
           totalCount,
-          byType: byType.map(item => ({
-            type: item.dataType,
-            count: parseInt(item.dataValues.count)
-          })),
-          byScraper: byScraper.map(item => ({
-            scraperId: item.scraperConfigId,
-            scraperName: item.scraperConfig?.name,
-            scraperType: item.scraperConfig?.scraperType,
-            count: parseInt(item.dataValues.count)
-          })),
-          dailyCounts: dailyCounts.map(item => ({
-            date: item.dataValues.date,
-            count: parseInt(item.dataValues.count)
-          }))
+          byType: byTypeResult,
+          byScraper: byScraperResult,
+          dailyCounts: dailyCountsResult
         }
       });
     } catch (error) {
