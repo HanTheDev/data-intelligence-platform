@@ -19,6 +19,10 @@ const sequelize = new Sequelize(
     port: process.env.DB_PORT || 5432, // Only default for port
     dialect: 'postgres',
     logging: process.env.NODE_ENV === 'development' ? console.log : false,
+    define: {
+      underscored: true,      // ← forces all models to use snake_case
+      freezeTableName: true   // ← prevents pluralization issues
+    },
     pool: {
       max: parseInt(process.env.DB_POOL_MAX) || 5,
       min: parseInt(process.env.DB_POOL_MIN) || 0,

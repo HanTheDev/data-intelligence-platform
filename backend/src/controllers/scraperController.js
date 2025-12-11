@@ -54,7 +54,7 @@ class ScraperController {
           model: ScrapingLog,
           as: 'logs',
           limit: 10,
-          order: [['createdAt', 'DESC']]
+          order: [['created_at', 'DESC']]
         }]
       });
 
@@ -216,7 +216,7 @@ class ScraperController {
         where,
         limit: parseInt(limit),
         offset: parseInt(offset),
-        order: [['createdAt', 'DESC']]
+        order: [['created_at', 'DESC']]
       });
 
       res.json({

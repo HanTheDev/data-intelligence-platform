@@ -1,27 +1,27 @@
-import React, { useState } from 'react';
-import { Search, Filter, Download, Trash2, Eye } from 'lucide-react';
-import Card from '../components/common/Card/Card';
-import Button from '../components/common/Button/Button';
-import Input from '../components/common/Input/Input';
-import Table from '../components/common/Table/Table';
-import Modal from '../components/common/Modal/Modal';
-import DataDetails from '../components/data/DataDetails';
-import { useScrapedData, useDeleteData } from '../hooks/useData';
+import React, { useState } from "react";
+import { Search, Filter, Download, Trash2, Eye } from "lucide-react";
+import Card from "../components/common/Card/Card";
+import Button from "../components/common/Button/Button";
+import Input from "../components/common/Input/Input";
+import Table from "../components/common/Table/Table";
+import Modal from "../components/common/Modal/Modal";
+import DataDetails from "../components/data/DataDetails";
+import { useScrapedData, useDeleteData } from "../hooks/useData";
 
 const Data = () => {
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({
-    search: '',
-    dataType: '',
-    scraperId: ''
+    search: "",
+    dataType: "",
+    scraperId: "",
   });
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedData, setSelectedData] = useState(null);
 
-  const { data, isLoading, refetch } = useScrapedData({ 
-    page, 
+  const { data, isLoading, refetch } = useScrapedData({
+    page,
     limit: 20,
-    ...filters 
+    ...filters,
   });
   const deleteMutation = useDeleteData();
 
@@ -31,12 +31,12 @@ const Data = () => {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this data?')) {
+    if (window.confirm("Are you sure you want to delete this data?")) {
       try {
         await deleteMutation.mutateAsync(id);
         refetch();
       } catch (error) {
-        console.error('Delete failed:', error);
+        console.error("Delete failed:", error);
       }
     }
   };
@@ -50,22 +50,22 @@ const Data = () => {
     // Simple CSV export
     if (!data?.data || data.data.length === 0) return;
 
-    const headers = ['Title', 'Type', 'Price', 'URL', 'Scraped At'];
-    const rows = data.data.map(item => [
+    const headers = ["Title", "Type", "Price", "URL", "Scraped At"];
+    const rows = data.data.map((item) => [
       item.title,
       item.dataType,
-      item.price ? `${item.currency} ${item.price}` : 'N/A',
+      item.price ? `${item.currency} ${item.price}` : "N/A",
       item.url,
-      new Date(item.scrapedAt).toLocaleString()
+      new Date(item.scrapedAt).toLocaleString(),
     ]);
 
     const csv = [headers, ...rows]
-      .map(row => row.map(cell => `"${cell}"`).join(','))
-      .join('\n');
+      .map((row) => row.map((cell) => `"${cell}"`).join(","))
+      .join("\n");
 
-    const blob = new Blob([csv], { type: 'text/csv' });
+    const blob = new Blob([csv], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = `scraped-data-${Date.now()}.csv`;
     a.click();
@@ -73,75 +73,90 @@ const Data = () => {
 
   const columns = [
     {
-      header: 'Title',
-      accessor: 'title',
+      header: "Title",
+      accessor: "title",
       render: (row) => (
-        <div className="max-w-md">
-          <div className="font-medium text-gray-900 truncate">{row.title}</div>
-          <div className="text-sm text-gray-500 capitalize">{row.dataType}</div>
+        <div>
+          <div className="font-medium text-gray-900">
+            {row.title || "No title"}
+          </div>
+          {row.dataType && (
+            <div className="text-xs text-gray-500 capitalize">
+              {row.dataType}
+            </div>
+          )}
         </div>
-      )
+      ),
     },
     {
-      header: 'Source',
-      accessor: 'scraperConfig',
+      header: "Source",
+      accessor: "scraperConfig.name",
       render: (row) => (
-        <span className="text-sm text-gray-600">
-          {row.scraperConfig?.name || 'Unknown'}
-        </span>
-      )
+        <div className="text-sm text-gray-700">
+          {row.scraperConfig?.name || "Unknown"}
+        </div>
+      ),
+    },
+    // Smart Price Column — only shows for products
+    {
+      header: "Price",
+      render: (row) => {
+        if (row.dataType === "product" && row.price) {
+          return (
+            <div className="font-semibold text-green-600">
+              {row.currency || "Rp"} {Number(row.price).toLocaleString("id-ID")}
+            </div>
+          );
+        }
+        if (row.dataType === "job" && row.metadata?.salary) {
+          return (
+            <div className="text-sm text-blue-600">{row.metadata.salary}</div>
+          );
+        }
+        return <span className="text-gray-400 text-sm">—</span>;
+      },
+    },
+    // Smart Extra Info Column (Location for jobs, Author/Date for news)
+    {
+      header: "Details",
+      render: (row) => {
+        if (row.dataType === "job") {
+          return (
+            <div className="text-sm text-gray-600">
+              {row.metadata?.location || row.metadata?.company || "Remote"}
+            </div>
+          );
+        }
+        if (row.dataType === "article" || row.dataType === "news") {
+          return (
+            <div className="text-xs text-gray-500">
+              {row.metadata?.author || row.metadata?.publishedAt || "—"}
+            </div>
+          );
+        }
+        return null;
+      },
     },
     {
-      header: 'Price',
-      accessor: 'price',
-      render: (row) => row.price ? (
-        <span className="font-medium text-gray-900">
-          {row.currency} {row.price.toLocaleString()}
-        </span>
-      ) : (
-        <span className="text-gray-400">N/A</span>
-      )
+      header: "Scraped At",
+      accessor: "scrapedAt",
+      render: (row) => new Date(row.scrapedAt).toLocaleString(),
     },
     {
-      header: 'Scraped At',
-      accessor: 'scrapedAt',
-      render: (row) => (
-        <span className="text-sm text-gray-600">
-          {new Date(row.scrapedAt).toLocaleString()}
-        </span>
-      )
-    },
-    {
-      header: 'Actions',
+      header: "Actions",
       render: (row) => (
         <div className="flex space-x-2">
-          <button
-            onClick={() => handleViewDetails(row)}
-            className="text-blue-600 hover:text-blue-800"
-            title="View Details"
-          >
-            <Eye size={18} />
-          </button>
           <a
             href={row.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-green-600 hover:text-green-800"
-            title="Visit Source"
+            className="text-blue-600 hover:text-blue-800 text-sm"
           >
-            <Download size={18} />
+            View
           </a>
-          <button
-            onClick={() => handleDelete(row.id)}
-            className="text-red-600 hover:text-red-800"
-            title="Delete"
-            disabled={deleteMutation.isLoading}
-          >
-            <Trash2 size={18} />
-          </button>
         </div>
-      )
-    }
+      ),
+    },
   ];
 
   return (
@@ -166,7 +181,10 @@ const Data = () => {
       <Card>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+            <Search
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+              size={20}
+            />
             <input
               type="text"
               placeholder="Search by title..."
@@ -193,7 +211,7 @@ const Data = () => {
           <Button
             variant="outline"
             onClick={() => {
-              setFilters({ search: '', dataType: '', scraperId: '' });
+              setFilters({ search: "", dataType: "", scraperId: "" });
               setPage(1);
             }}
             className="flex items-center justify-center space-x-2"
@@ -217,13 +235,15 @@ const Data = () => {
         {data?.pagination && data.pagination.totalPages > 1 && (
           <div className="flex justify-between items-center mt-6">
             <div className="text-sm text-gray-600">
-              Showing {((page - 1) * 20) + 1} to {Math.min(page * 20, data.pagination.total)} of {data.pagination.total} results
+              Showing {(page - 1) * 20 + 1} to{" "}
+              {Math.min(page * 20, data.pagination.total)} of{" "}
+              {data.pagination.total} results
             </div>
             <div className="flex items-center space-x-2">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPage(p => Math.max(1, p - 1))}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
               >
                 Previous
@@ -234,7 +254,7 @@ const Data = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPage(p => p + 1)}
+                onClick={() => setPage((p) => p + 1)}
                 disabled={page >= data.pagination.totalPages}
               >
                 Next

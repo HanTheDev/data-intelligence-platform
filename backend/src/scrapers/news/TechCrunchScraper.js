@@ -12,7 +12,7 @@ class TechCrunchScraper extends BaseScraper {
 
   async scrape() {
     let browser;
-    
+
     try {
       // Use Puppeteer for reliable scraping
       browser = await puppeteer.launch({
@@ -22,7 +22,7 @@ class TechCrunchScraper extends BaseScraper {
 
       const page = await browser.newPage();
       await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-      
+
       await page.goto(this.targetUrl, {
         waitUntil: 'networkidle2',
         timeout: 30000
@@ -30,11 +30,11 @@ class TechCrunchScraper extends BaseScraper {
 
       // Wait for content
       await delay(2000);
-      
+
       // Extract articles
       const articles = await page.evaluate(() => {
         const articles = [];
-        
+
         // Method 1: Look for article elements
         const articleSelectors = [
           'article',
@@ -45,7 +45,7 @@ class TechCrunchScraper extends BaseScraper {
           'div[class*="article"]',
           'div[class*="content"]'
         ];
-        
+
         let articleElements = [];
         for (const selector of articleSelectors) {
           const elements = Array.from(document.querySelectorAll(selector));
@@ -54,7 +54,7 @@ class TechCrunchScraper extends BaseScraper {
             break;
           }
         }
-        
+
         // Method 2: Look for article links
         if (articleElements.length === 0) {
           const articleLinks = Array.from(document.querySelectorAll('a[href*="techcrunch.com/"]'));
@@ -76,64 +76,64 @@ class TechCrunchScraper extends BaseScraper {
             }
           });
         }
-        
+
         // Extract data from articles
         articleElements.forEach(element => {
           try {
             // Find title
             let title = '';
-            const heading = element.querySelector('h2, h3, h4') || 
-                           element.querySelector('[class*="title"]') || 
-                           element.querySelector('[class*="headline"]');
-            
+            const heading = element.querySelector('h2, h3, h4') ||
+              element.querySelector('[class*="title"]') ||
+              element.querySelector('[class*="headline"]');
+
             if (heading) {
               title = heading.innerText.trim();
             }
-            
+
             // Find link
             let url = '';
             const link = element.querySelector('a[href*="techcrunch.com/"]');
             if (link) {
               url = link.href;
             }
-            
+
             // Find description/excerpt
             let description = '';
-            const excerpt = element.querySelector('p') || 
-                           element.querySelector('[class*="excerpt"]') || 
-                           element.querySelector('[class*="summary"]');
-            
+            const excerpt = element.querySelector('p') ||
+              element.querySelector('[class*="excerpt"]') ||
+              element.querySelector('[class*="summary"]');
+
             if (excerpt) {
               description = excerpt.innerText.trim();
             }
-            
+
             // Find image
             let imageUrl = '';
             const img = element.querySelector('img');
             if (img) {
               imageUrl = img.src || img.getAttribute('data-src') || '';
             }
-            
+
             // Find author
             let author = '';
-            const authorElement = element.querySelector('[class*="author"]') || 
-                                 element.querySelector('[class*="byline"]') ||
-                                 element.querySelector('[class*="writer"]');
-            
+            const authorElement = element.querySelector('[class*="author"]') ||
+              element.querySelector('[class*="byline"]') ||
+              element.querySelector('[class*="writer"]');
+
             if (authorElement) {
               author = authorElement.innerText.trim();
             }
-            
+
             // Find date
             let date = '';
-            const dateElement = element.querySelector('time') || 
-                               element.querySelector('[class*="date"]') || 
-                               element.querySelector('[class*="time"]');
-            
+            const dateElement = element.querySelector('time') ||
+              element.querySelector('[class*="date"]') ||
+              element.querySelector('[class*="time"]');
+
             if (dateElement) {
               date = dateElement.innerText.trim() || dateElement.getAttribute('datetime');
             }
-            
+
             // Filter and add article
             if (title && url && title.length > 10) {
               articles.push({
@@ -145,33 +145,33 @@ class TechCrunchScraper extends BaseScraper {
                 date
               });
             }
-            
+
           } catch (error) {
             console.error('Error extracting article:', error);
           }
         });
-        
+
         // Remove duplicates
         const uniqueArticles = [];
         const seenUrls = new Set();
-        
+
         articles.forEach(article => {
           if (article.url && !seenUrls.has(article.url)) {
             seenUrls.add(article.url);
             uniqueArticles.push(article);
           }
         });
-        
+
         return uniqueArticles.slice(0, 20); // Limit to 20 articles
       });
 
       await page.close();
-      
+
       logger.info(`Found ${articles.length} articles from TechCrunch`);
-      
+
       // Save to database
       await this.saveArticles(articles);
-      
+
       return articles;
 
     } finally {
@@ -205,7 +205,8 @@ class TechCrunchScraper extends BaseScraper {
       } catch (error) {
         logger.error('Error saving article', {
           article: article.title,
-          error: error.message
+          error: error.name + ': ' + error.message,
+          details: error.errors ? error.errors.map(e => ({ field: e.path, msg: e.message })) : 'No details'
         });
       }
     }
