@@ -2,7 +2,7 @@
 
 A production-ready web scraping platform built with Node.js, React, and PostgreSQL. This platform enables automated data collection from multiple sources with scheduling, monitoring, and data management capabilities.
 
-![Dashboard Screenshot](https://drive.google.com/file/d/1pJFFPcOx8OXYjT77bANSH8ETFPC6Pq0w/view?usp=sharing)
+![Dashboard Screenshot](https://drive.google.com/uc?export=view&id=1pJFFPcOx8OXYjT77bANSH8ETFPC6Pq0w)
 
 ## 🚀 Features
 
